@@ -23,14 +23,12 @@ void scannerStart() {
 }
 
 ScanState scannerPoll() {
-  if (!running) return ScanState::Idle;
-  int16_t n = WiFi.scanComplete();
-  if (n == WIFI_SCAN_RUNNING) return ScanState::Running;
-  if (n == WIFI_SCAN_FAILED) {
+  ScanState state = scanStateFor(running, WiFi.scanComplete());
+  if (state == ScanState::Failed) {
+    WiFi.scanDelete();
     running = false;
-    return ScanState::Failed;
   }
-  return ScanState::Done;
+  return state;
 }
 
 std::vector<ScanResult> scannerTakeResults() {

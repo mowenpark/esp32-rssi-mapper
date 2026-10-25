@@ -4,9 +4,8 @@
 
 #include <vector>
 
+#include "scan_state.h"
 #include "selection.h"
-
-enum class ScanState { Idle, Running, Done, Failed };
 
 void scannerBegin();
 void scannerStart();

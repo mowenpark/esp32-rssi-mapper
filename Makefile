@@ -1,6 +1,6 @@
 CXX ?= c++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Irssi_meter
-SOURCES = $(wildcard test/*.cpp) rssi_meter/signal_level.cpp rssi_meter/selection.cpp
+SOURCES = $(wildcard test/*.cpp) rssi_meter/signal_level.cpp rssi_meter/selection.cpp rssi_meter/scan_state.cpp
 
 .PHONY: test
 test: build/tests
