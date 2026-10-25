@@ -60,7 +60,7 @@ esp32-rssi-mapper/
     rssi_meter.ino            setup() + loop(): scan → select → render
     config.example.h          template: network name + optional node nicknames
     config.h                  user's copy; git-ignored
-    scanner.h / scanner.cpp   async Wi-Fi scan; returns raw scan results
+    scanner.h / scanner.cpp   one blocking Wi-Fi scan; returns raw scan results
     selection.h / selection.cpp  pure: filter by SSID, pick strongest, nickname lookup, smoothing
     signal_level.h / signal_level.cpp  pure: dBm → rating, colour, bar fill
     display.h / display.cpp   draws the screen states
@@ -77,11 +77,20 @@ esp32-rssi-mapper/
   `{"3F:A1", "Living Room"}`, matched against the last 5 characters of the
   BSSID (last two octets) case-insensitively.
 
-**scanner** — wraps `WiFi.scanNetworks(async=true, …)` in station mode with a
-short per-channel dwell (target full scan ≈1.5–2 s). Exposes: start a scan,
-poll whether it finished, and read results as a list of
-`{ssid, bssid, rssi}`. Reports scan failure distinctly from "zero results".
-Knows nothing about the display.
+**scanner** — wraps a blocking `WiFi.scanNetworks(async=false, …)` in station
+mode with a short per-channel dwell (target full scan ≈1.5–2 s). Exposes one
+call that runs a scan and returns its results as a list of
+`{ssid, bssid, rssi}`, or reports failure. A result count of 0 counts as a
+failure (the 2.0.14 core reports failed scans that way). Knows nothing about
+the display.
+
+Scans block on purpose. The async API in arduino-esp32 2.0.14 gives up after
+20× the per-channel time while the radio is still scanning; the aborted
+scan's "done" event is then credited to the next scan, so back-to-back async
+scans never complete (seen on device: ~15,000 failures in 15 s, "Not found"
+shown next to a node). Nothing on screen changes during a scan, so blocking
+costs nothing visible except that the Stale screen's counter ticks once per
+scan rather than once per second.
 
 **selection** (pure, no Arduino headers)
 - `pickStrongest(results, ssid)` → the strongest matching `{bssid, rssi}` plus
@@ -127,11 +136,10 @@ Visual reference: Design canvas "RSSI Meter Screens"
 
 ```
 loop():
-  if no scan running → scanner.start()
-  if scanner finished:
+  scan (blocks ~1.5–2 s):
      ok      → pickStrongest → smoother → signal_level → display(Reading | NotFound)
      failed  → display(Stale) using last reading (or NotFound if none yet)
-  update the "Ns ago" counter on the Stale screen once per second
+  update the "Ns ago" counter on the Stale screen (at most once per second)
 ```
 
 ## Error handling

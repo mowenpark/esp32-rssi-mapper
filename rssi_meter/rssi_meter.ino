@@ -27,8 +27,8 @@ static unsigned long lastGoodMs = 0;
 static bool stale = false;
 static unsigned long lastStaleDrawMs = 0;
 
-static void onScanDone() {
-  Pick pick = pickStrongest(scannerTakeResults(), WIFI_SSID);
+static void onScanDone(const std::vector<ScanResult>& results) {
+  Pick pick = pickStrongest(results, WIFI_SSID);
   stale = false;
   if (!pick.found) {
     smoother.reset();
@@ -58,24 +58,14 @@ static void onScanFailed() {
 void setup() {
   displayBegin();
   scannerBegin();
-  scannerStart();
 }
 
 void loop() {
-  switch (scannerPoll()) {
-    case ScanState::Idle:
-      scannerStart();
-      break;
-    case ScanState::Running:
-      break;
-    case ScanState::Done:
-      onScanDone();
-      scannerStart();
-      break;
-    case ScanState::Failed:
-      onScanFailed();
-      scannerStart();
-      break;
+  std::vector<ScanResult> results;
+  if (scannerScan(results)) {
+    onScanDone(results);
+  } else {
+    onScanFailed();
   }
 
   if (stale && millis() - lastStaleDrawMs >= 1000) {
